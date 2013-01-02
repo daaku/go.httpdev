@@ -3,9 +3,14 @@
 package httpdev
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/daaku/go.h"
 )
 
 var now = time.Now()
@@ -22,4 +27,55 @@ func Sleep(w http.ResponseWriter, r *http.Request) {
 		"Started at %s slept for %d nanoseconds.\n",
 		now,
 		duration.Nanoseconds())))
+}
+
+// Prints HTMLized JSON for Browsers & plain text for others.
+func HumanJSON(v interface{}, w http.ResponseWriter, r *http.Request) {
+	out, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		log.Printf("Error json.MarshalIndent: %s", err)
+	}
+	if strings.Contains(r.Header.Get("Accept"), "text/html") {
+		h.WriteResponse(w, r, &h.Document{
+			Inner: &h.Frag{
+				&h.Head{
+					Inner: &h.Frag{
+						&h.Meta{Charset: "utf-8"},
+						&h.Title{h.String("Dump")},
+					},
+				},
+				&h.Body{
+					Inner: &h.Pre{
+						Inner: h.String(string(out)),
+					},
+				},
+			},
+		})
+	} else {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Write(out)
+		w.Write([]byte("\n"))
+	}
+}
+
+func headerMap(h http.Header) map[string]string {
+	r := make(map[string]string)
+	for name, value := range h {
+		r[name] = value[0]
+	}
+	return r
+}
+
+// Info handler to see a JSON view of some server context.
+func Info(context map[string]interface{}, w http.ResponseWriter, r *http.Request) {
+	context["request"] = map[string]interface{}{
+		"method": r.Method,
+		"form":   r.Form,
+		"url": map[string]interface{}{
+			"path":  r.URL.Path,
+			"query": r.URL.RawQuery,
+		},
+		"headers": headerMap(r.Header),
+	}
+	HumanJSON(context, w, r)
 }
