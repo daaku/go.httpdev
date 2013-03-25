@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -24,9 +25,10 @@ func Sleep(w http.ResponseWriter, r *http.Request) {
 	}
 	time.Sleep(duration)
 	w.Write([]byte(fmt.Sprintf(
-		"Started at %s slept for %d nanoseconds.\n",
+		"Started at %s slept for %d nanoseconds with pid %d.\n",
 		now,
-		duration.Nanoseconds())))
+		duration.Nanoseconds(),
+		os.Getpid())))
 }
 
 // Prints HTMLized JSON for Browsers & plain text for others.
